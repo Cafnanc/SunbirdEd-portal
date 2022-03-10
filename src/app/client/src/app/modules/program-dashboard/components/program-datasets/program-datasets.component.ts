@@ -118,11 +118,12 @@ export class DatasetsComponent implements OnInit {
 
     const paramOptions = {
       url:
-        this.config.urlConFig.URLS.KENDRA.SOLUTIONS_BY_PROGRAMID + '/' + program._id + '?role=' + program.role
+        this.config.urlConFig.URLS.KENDRA.SOLUTIONS_BY_PROGRAMID + '/' + program._id + '?role=' + program.role[0]
     };
     this.kendraService.get(paramOptions).subscribe(data => {
       if (data && data.result) {
         this.solutions = data.result;
+        
       }
     }, error => {
       this.toasterService.error(_.get(this.resourceService, 'messages.fmsg.m0004'));
@@ -181,25 +182,43 @@ export class DatasetsComponent implements OnInit {
         }
       });
       this.tag = solution[0]._id + '_' + this.userId;
-      this.loadReports();
-
+    
       const program = this.programSelected;
       this.reportForm.reset();
       this.reportForm.controls.solution.setValue($event);
       this.reportForm.controls.programName.setValue(program);
+      console.log("----------- solution[0].type ",solution[0].type);
 
       if (solution[0].isRubricDriven == true && solution[0].type == 'observation') {
         const type = solution[0].type + '_with_rubric';
-        this.reportTypes = this.formData[type];
+        this.getReportTypes(this.programSelected,type);
       } else {
-        if (this.formData[solution[0].type]) {
-          this.reportTypes = this.formData[solution[0].type];
-        } else {
-          this.reportTypes = [];
-        }
+        this.getReportTypes(this.programSelected,solution[0].type);
       }
+      this.loadReports();
+     
 
     }
+  }
+
+  public getReportTypes(programId,solutionType){
+
+   this.reportTypes = [];
+   let selectedProgram = this.programs.filter(program => program._id==programId);
+
+   if(selectedProgram && selectedProgram[0]){
+    let role = selectedProgram[0]['role'];
+    let types = this.formData[solutionType];
+
+    if(types && types.length > 0){
+      types.forEach(element => {
+          let roleMatch = role.some(e =>  element.roles.includes(e));
+          if(roleMatch){
+            this.reportTypes.push(element);
+          }
+      });
+    } 
+   }
   }
 
   public closeModal(): void {
@@ -342,20 +361,9 @@ export class DatasetsComponent implements OnInit {
 
     this.formService.getFormConfig(formServiceInputParams).subscribe((formData) => {
       if (formData) {
-        if (this.userRoles.includes('PROGRAM_DESIGNER')) {
           const formReportTypes = Object.keys(formData);
-          formReportTypes.map(key => {
-            const filteredReportTypes = formData[key].filter(ele => {
-              if (ele.roles.includes('PROGRAM_DESIGNER')) {
-                return ele;
-              }
-            });
-            formData[key] = filteredReportTypes;
-          });
+          console.log("formData",formData);
           this.formData = formData;
-        } else {
-          this.formData = formData;
-        }
       }
     }, error => {
       this.toasterService.error(this.resourceService.messages.emsg.m0005);
